@@ -1,0 +1,12 @@
+[package]
+name = "cargo-linkargs"
+version = "0.0.1"
+authors = ["Sondre Lefsaker <sondrele@stud.ntnu.no>"]
+
+[dependencies]
+docopt = "*"
+docopt_macros = "*"
+rustc-serialize = "*"
+
+[dependencies.cargo]
+git = "https://github.com/rust-lang/cargo"
