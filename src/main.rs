@@ -20,7 +20,7 @@ use cargo::core::{MultiShell, PackageIdSpec};
 use cargo_linkargs::LinkArgsEngine;
 
 docopt!(Options derive Debug, "
-Compile a local package and all of its dependencies
+Compile a local package and all of its dependencies, providing link arguments to the final binary
 
 Usage:
     cargo linkargs [options] <args>
@@ -36,6 +36,7 @@ Options:
     --target TRIPLE          Build for the target triple
     --manifest-path PATH     Path to the manifest to compile
     -v, --verbose            Use verbose output
+    --print-link-args        Print the arguments passed to the linker for the final binary
 
 If the --package argument is given, then SPEC is a package id specification
 which indicates which package should be built. If it is not given, then the
@@ -96,6 +97,7 @@ fn main() {
         let engine = LinkArgsEngine {
             pkg_name: pkg_name,
             link_args: options.arg_args.clone(),
+            print_link_args: options.flag_print_link_args,
         };
 
         let mut opts = CompileOptions {

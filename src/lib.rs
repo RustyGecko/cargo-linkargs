@@ -19,6 +19,7 @@ type ExecResult = Result<Option<Output>, ProcessError>;
 pub struct LinkArgsEngine {
     pub pkg_name: String,
     pub link_args: Option<String>,
+    pub print_link_args: bool,
 }
 
 impl ExecEngine for LinkArgsEngine {
@@ -44,12 +45,14 @@ fn append_linkargs(mut command: CommandPrototype, with_output: bool,
         args[1].to_str() == Some("bin")
     }).is_some();
 
-    match engine.link_args {
-        Some(ref args) if is_binary && name_matches => {
-            command.arg("-C")
-                .arg(&format!("link-args={}", args));
-        },
-        _ => (),
+    if is_binary && name_matches {
+        if engine.link_args.is_some() {
+            command.arg("-C").arg(&format!("link-args={}", engine.link_args.as_ref().unwrap()));
+        }
+
+        if engine.print_link_args {
+            command.arg("-Z").arg("print-link-args");
+        }
     }
 
     execute(command.into_process_builder(), with_output)
