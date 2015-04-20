@@ -15,7 +15,7 @@ use docopt::Docopt;
 use cargo::ops::{self, Compilation, CompileFilter, CompileOptions, ExecEngine};
 use cargo::util::important_paths::find_root_manifest_for_cwd;
 use cargo::util::{CargoResult, CliResult, CliError, Config};
-use cargo::core::PackageIdSpec;
+use cargo::core::{MultiShell, PackageIdSpec};
 
 use cargo_linkargs::LinkArgsEngine;
 
@@ -62,23 +62,34 @@ the manifest. The default profile for this command is `dev`, but passing
 the --release flag will use the `release` profile instead.
 ";
 
+fn get_package_name(root: &PathBuf, spec: Option<&str>, shell: &mut MultiShell) -> Option<String> {
+    let pkg_name = {
+        let config = Config::new(shell).unwrap();
+        ops::pkgid(&root, spec, &config).map(|pkgid| {
+            Some(pkgid.name().replace("-", "_").to_string())
+        }).map_err(|err| {
+            cargo::util::CliError::from_boxed(err, 101)
+        })
+    };
+
+    match pkg_name {
+        Ok(name) => name,
+        Err(e) => {
+            cargo::handle_error(e, shell);
+            None
+        }
+    }
+}
+
 fn main() {
     let options: Options = Docopt::new(USAGE)
                                    .and_then(|d| d.decode())
                                    .unwrap_or_else(|e| e.exit());
     let mut shell = cargo::shell(options.flag_verbose);
     let root = find_root_manifest_for_cwd(options.flag_manifest_path).unwrap();
-
     let spec = options.flag_package.as_ref().map(|s| &s[..]);
 
-    let pkg_name: Result<String, CliError> = {
-        let config = Config::new(&mut shell).unwrap();
-        ops::pkgid(&root, spec, &config).map(|pkgid| {
-            pkgid.name().replace("-", "_").to_string()
-        }).map_err(|err| {
-            cargo::util::CliError::from_boxed(err, 101)
-        })
-    };
+    let pkg_name = get_package_name(&root, spec, &mut shell).unwrap();
 
     let result: Result<Option<()>, CliError> = {
         let config = Config::new(&mut shell).unwrap();
@@ -91,7 +102,7 @@ fn main() {
         };
 
         let engine = LinkArgsEngine {
-            pkg_name: pkg_name.ok().unwrap(),
+            pkg_name: pkg_name,
             link_args: options.flag_link_args.clone(),
         };
 
