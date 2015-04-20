@@ -10,3 +10,8 @@ rustc-serialize = "*"
 
 [dependencies.cargo]
 git = "https://github.com/rust-lang/cargo"
+
+[[bin]]
+name = "cargo-linkargs"
+test = false
+doc = true
