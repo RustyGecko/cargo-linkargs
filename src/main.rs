@@ -1,4 +1,4 @@
-#![allow(warnings)]
+#![deny(warnings)]
 #![feature(plugin)]
 #![plugin(docopt_macros)]
 
@@ -12,10 +12,10 @@ use std::path::PathBuf;
 
 use docopt::Docopt;
 
-use cargo::ops::{self, Compilation, CompileFilter, CompileOptions, ExecEngine};
+use cargo::ops::{self, CompileFilter, CompileOptions, ExecEngine};
 use cargo::util::important_paths::find_root_manifest_for_cwd;
-use cargo::util::{CargoResult, CliResult, CliError, Config};
-use cargo::core::{MultiShell, PackageIdSpec};
+use cargo::util::{CliError, Config};
+use cargo::core::MultiShell;
 
 use cargo_linkargs::LinkArgsEngine;
 
