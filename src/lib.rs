@@ -11,7 +11,7 @@ type ExecResult = Result<Option<Output>, ProcessError>;
 
 #[derive(Debug)]
 pub struct LinkArgsEngine {
-    pub pkg_name: String,
+    pub targets: Vec<String>,
     pub link_args: Option<String>,
     pub print_link_args: bool,
 }
@@ -35,7 +35,7 @@ fn exec_append_linkargs(command: CommandPrototype, with_output: bool,
 fn append_linkargs(mut command: CommandPrototype, engine: &LinkArgsEngine) -> CommandPrototype {
     let name_matches = command.get_args().windows(2).find(|&args| {
         args[0].to_str() == Some("--crate-name") &&
-        args[1].to_str() == Some(&engine.pkg_name)
+        engine.targets.iter().find(|&target| Some(target.as_ref()) == args[1].to_str()).is_some()
     }).is_some();
 
     let is_binary = command.get_args().windows(2).find(|&args| {
@@ -73,7 +73,7 @@ mod tests {
         let mut cmd = CommandPrototype::new(CommandType::Rustc).unwrap();
         cmd.args(&["--crate-name", "test_bin", "--crate-type", "bin"]);
         let engine = LinkArgsEngine {
-            pkg_name: name.to_string(),
+            targets: vec![name.to_string()],
             link_args: Some("-first --num 2".to_string()),
             print_link_args: true,
         };
