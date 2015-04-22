@@ -31,6 +31,7 @@ Options:
     -p SPEC, --package SPEC  Package to build
     -j N, --jobs N           The number of jobs to run in parallel
     --lib                    Build only lib (if present in package)
+    --examples               Build examples (if present in package)
     --release                Build artifacts in release mode, with optimizations
     --features FEATURES      Space-separated list of features to also build
     --no-default-features    Do not build the `default` feature
@@ -105,7 +106,11 @@ fn main() {
             filter: filter,
             exec_engine: Some(Arc::new(Box::new(engine) as Box<ExecEngine>)),
             release: options.flag_release,
-            mode: ops::CompileMode::Build,
+            mode: if options.flag_examples {
+                ops::CompileMode::Test
+            } else {
+                ops::CompileMode::Build
+            },
         };
 
         ops::compile(&root, &mut opts).map(|_| None).map_err(|err| {
