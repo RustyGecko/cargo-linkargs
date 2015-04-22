@@ -13,9 +13,9 @@ use std::path::PathBuf;
 use docopt::Docopt;
 
 use cargo::core::{MultiShell, Source};
-use cargo::ops::{self, CompileFilter, CompileOptions, ExecEngine};
+use cargo::ops::{self, Compilation, CompileFilter, CompileOptions, ExecEngine};
 use cargo::sources::PathSource;
-use cargo::util::{CliError, Config};
+use cargo::util::{CargoResult, Config};
 use cargo::util::important_paths::find_root_manifest_for_cwd;
 
 use cargo_linkargs::LinkArgsEngine;
@@ -59,75 +59,84 @@ flag_target: Option<String>,
 flag_manifest_path: Option<String>,
 );
 
-fn get_target_names(root: &PathBuf, shell: &mut MultiShell) -> (Vec<String>, Vec<String>) {
-    let config = Config::new(shell).unwrap();
-    let mut source = PathSource::for_path(root.parent().unwrap(),
-                                           &config).unwrap();
-    let _ = source.update();
-    let package = source.root_package().unwrap();
-    let targets = package.targets();
-
-    let example_names = targets.iter()
-        .filter(|t| t.is_example())
-        .map(|t| t.name().to_string())
-        .collect();
-    let binary_names = targets.iter()
-        .filter(|t| t.is_bin())
-        .map(|t| t.name().to_string())
-        .collect();
-    (example_names, binary_names)
-}
-
 fn main() {
     let options: Options = Options::docopt()
                                     .decode()
                                     .unwrap_or_else(|e| e.exit());
+
     let mut shell = cargo::shell(options.flag_verbose);
-    let root = find_root_manifest_for_cwd(options.flag_manifest_path).unwrap();
-    let spec = options.flag_package.as_ref().map(|s| &s[..]);
+    let root = find_root_manifest_for_cwd(options.flag_manifest_path.clone()).unwrap();
 
-    let (example_names, binary_names) = get_target_names(&root, &mut shell);
+    let target_names = get_target_names(&root, &mut shell);
 
-    let result: Result<Option<()>, CliError> = {
-        let config = Config::new(&mut shell).unwrap();
-
-        let examples = options.flag_example.map(|e| vec![e]).unwrap_or(example_names);
-
-        let filter = if options.flag_lib {
-            CompileFilter::Only {
-                lib: true, bins: &[], examples: &[], benches: &[], tests: &[]
-            }
-        } else if !examples.is_empty() {
-            CompileFilter::Only {
-                lib: true, bins: &[], examples: &examples, benches: &[], tests: &[]
-            }
-        } else {
-            CompileFilter::Everything
-        };
-
-        let engine = LinkArgsEngine {
-            targets: binary_names + &examples,
-            link_args: options.arg_args.clone(),
-            print_link_args: options.flag_print_link_args,
-        };
-
-        let mut opts = CompileOptions {
-            config: &config,
-            jobs: options.flag_jobs,
-            target: options.flag_target.as_ref().map(|t| &t[..]),
-            features: &options.flag_features,
-            no_default_features: options.flag_no_default_features,
-            spec: spec,
-            filter: filter,
-            exec_engine: Some(Arc::new(Box::new(engine) as Box<ExecEngine>)),
-            release: options.flag_release,
-            mode: ops::CompileMode::Build,
-        };
-
-        ops::compile(&root, &mut opts).map(|_| None).map_err(|err| {
-            cargo::util::CliError::from_boxed(err, 101)
-        })
+    let result = if let Ok(Some((examples, bins))) = target_names {
+        compile_with_linkargs(&root, &mut shell, options, examples, bins)
+            .map(|_| None::<()>)
+            .map_err(|err| cargo::util::CliError::from_boxed(err, 101))
+    } else {
+        target_names
+            .map(|_| None)
+            .map_err(|err| cargo::util::CliError::from_boxed(err, 101))
     };
 
     cargo::process_executed(result, &mut shell);
+}
+
+fn get_target_names(root: &PathBuf, shell: &mut MultiShell) ->
+                    CargoResult<Option<(Vec<String>, Vec<String>)>> {
+    let config = Config::new(shell).unwrap();
+
+    let mut source = try!(PathSource::for_path(root.parent().unwrap(), &config));
+    try!(source.update());
+    let package = try!(source.root_package());
+    let targets = package.targets();
+
+    let examples = targets.iter()
+        .filter(|t| t.is_example())
+        .map(|t| t.name().to_string())
+        .collect();
+    let bins = targets.iter()
+        .filter(|t| t.is_bin())
+        .map(|t| t.name().to_string())
+        .collect();
+
+    Ok(Some((examples, bins)))
+}
+
+fn compile_with_linkargs(root: &PathBuf, shell: &mut MultiShell, options: Options,
+                         examples: Vec<String>, bins: Vec<String>) -> CargoResult<Compilation> {
+    let examples = options.flag_example.map(|e| vec![e]).unwrap_or(examples);
+
+    let filter = if options.flag_lib {
+        CompileFilter::Only {
+            lib: true, bins: &[], examples: &[], benches: &[], tests: &[]
+        }
+    } else if !examples.is_empty() {
+        CompileFilter::Only {
+            lib: true, bins: &[], examples: &examples, benches: &[], tests: &[]
+        }
+    } else {
+        CompileFilter::Everything
+    };
+
+    let engine = LinkArgsEngine {
+        targets: bins + &examples,
+        link_args: options.arg_args.clone(),
+        print_link_args: options.flag_print_link_args,
+    };
+
+    let mut opts = CompileOptions {
+        config: &Config::new(shell).unwrap(),
+        jobs: options.flag_jobs,
+        target: options.flag_target.as_ref().map(|t| &t[..]),
+        features: &options.flag_features,
+        no_default_features: options.flag_no_default_features,
+        spec: options.flag_package.as_ref().map(|s| &s[..]),
+        filter: filter,
+        exec_engine: Some(Arc::new(Box::new(engine) as Box<ExecEngine>)),
+        release: options.flag_release,
+        mode: ops::CompileMode::Build,
+    };
+
+    ops::compile(&root, &mut opts)
 }
