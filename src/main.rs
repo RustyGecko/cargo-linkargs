@@ -105,7 +105,8 @@ fn get_target_names(root: &PathBuf, shell: &mut MultiShell) ->
 
 fn compile_with_linkargs(root: &PathBuf, shell: &mut MultiShell, options: Options,
                          examples: Vec<String>, bins: Vec<String>) -> CargoResult<Compilation> {
-    let examples = options.flag_example.map(|e| vec![e]).unwrap_or(examples);
+    let examples = options.flag_example.map(|e| vec![e])
+        .unwrap_or(if options.flag_build_examples { examples } else { vec![] });
 
     let filter = if options.flag_lib {
         CompileFilter::Only {
