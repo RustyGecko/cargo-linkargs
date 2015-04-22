@@ -23,7 +23,7 @@ docopt!(Options derive Debug, "
 Compile a local package and all of its dependencies, providing link arguments to the final binary
 
 Usage:
-    cargo linkargs [options] <args>
+    cargo linkargs [options] [<args>]
 
 Options:
     -h, --help               Print this message
