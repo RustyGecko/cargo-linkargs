@@ -31,7 +31,8 @@ Options:
     -p SPEC, --package SPEC  Package to build
     -j N, --jobs N           The number of jobs to run in parallel
     --lib                    Build only lib (if present in package)
-    --examples               Build examples (if present in package)
+    --build-examples         Build all examples (if present in package)
+    --example NAME           Name of the example to build
     --release                Build artifacts in release mode, with optimizations
     --features FEATURES      Space-separated list of features to also build
     --no-default-features    Do not build the `default` feature
@@ -50,6 +51,7 @@ the manifest. The default profile for this command is `dev`, but passing
 the --release flag will use the `release` profile instead.
 ",
 arg_args: Option<String>,
+flag_example: Option<String>,
 flag_package: Option<String>,
 flag_jobs: Option<u32>,
 flag_features: Vec<String>,
@@ -57,16 +59,23 @@ flag_target: Option<String>,
 flag_manifest_path: Option<String>,
 );
 
-fn get_target_names(root: &PathBuf, shell: &mut MultiShell) -> Vec<String> {
+fn get_target_names(root: &PathBuf, shell: &mut MultiShell) -> (Vec<String>, Vec<String>) {
     let config = Config::new(shell).unwrap();
     let mut source = PathSource::for_path(root.parent().unwrap(),
                                            &config).unwrap();
     let _ = source.update();
     let package = source.root_package().unwrap();
-    package.targets().iter()
-        .filter(|t| t.is_bin() || t.is_example())
+    let targets = package.targets();
+
+    let example_names = targets.iter()
+        .filter(|t| t.is_example())
         .map(|t| t.name().to_string())
-        .collect()
+        .collect();
+    let binary_names = targets.iter()
+        .filter(|t| t.is_bin())
+        .map(|t| t.name().to_string())
+        .collect();
+    (example_names, binary_names)
 }
 
 fn main() {
@@ -77,21 +86,27 @@ fn main() {
     let root = find_root_manifest_for_cwd(options.flag_manifest_path).unwrap();
     let spec = options.flag_package.as_ref().map(|s| &s[..]);
 
-    let targets = get_target_names(&root, &mut shell);
+    let (example_names, binary_names) = get_target_names(&root, &mut shell);
 
     let result: Result<Option<()>, CliError> = {
         let config = Config::new(&mut shell).unwrap();
 
-        let filter = match options.flag_lib {
-            true => CompileFilter::Only {
+        let examples = options.flag_example.map(|e| vec![e]).unwrap_or(example_names);
+
+        let filter = if options.flag_lib {
+            CompileFilter::Only {
                 lib: true, bins: &[], examples: &[], benches: &[], tests: &[]
-            },
-            false => CompileFilter::Everything,
+            }
+        } else if !examples.is_empty() {
+            CompileFilter::Only {
+                lib: true, bins: &[], examples: &examples, benches: &[], tests: &[]
+            }
+        } else {
+            CompileFilter::Everything
         };
 
-
         let engine = LinkArgsEngine {
-            targets: targets,
+            targets: binary_names + &examples,
             link_args: options.arg_args.clone(),
             print_link_args: options.flag_print_link_args,
         };
@@ -106,11 +121,7 @@ fn main() {
             filter: filter,
             exec_engine: Some(Arc::new(Box::new(engine) as Box<ExecEngine>)),
             release: options.flag_release,
-            mode: if options.flag_examples {
-                ops::CompileMode::Test
-            } else {
-                ops::CompileMode::Build
-            },
+            mode: ops::CompileMode::Build,
         };
 
         ops::compile(&root, &mut opts).map(|_| None).map_err(|err| {
