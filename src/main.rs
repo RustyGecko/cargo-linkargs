@@ -12,10 +12,11 @@ use std::path::PathBuf;
 
 use docopt::Docopt;
 
+use cargo::core::{MultiShell, Source};
 use cargo::ops::{self, CompileFilter, CompileOptions, ExecEngine};
-use cargo::util::important_paths::find_root_manifest_for_cwd;
+use cargo::sources::PathSource;
 use cargo::util::{CliError, Config};
-use cargo::core::MultiShell;
+use cargo::util::important_paths::find_root_manifest_for_cwd;
 
 use cargo_linkargs::LinkArgsEngine;
 
@@ -55,23 +56,16 @@ flag_target: Option<String>,
 flag_manifest_path: Option<String>,
 );
 
-fn get_package_name(root: &PathBuf, spec: Option<&str>, shell: &mut MultiShell) -> Option<String> {
-    let pkg_name = {
-        let config = Config::new(shell).unwrap();
-        ops::pkgid(&root, spec, &config).map(|pkgid| {
-            Some(pkgid.name().replace("-", "_").to_string())
-        }).map_err(|err| {
-            cargo::util::CliError::from_boxed(err, 101)
-        })
-    };
-
-    match pkg_name {
-        Ok(name) => name,
-        Err(e) => {
-            cargo::handle_error(e, shell);
-            None
-        }
-    }
+fn get_target_names(root: &PathBuf, shell: &mut MultiShell) -> Vec<String> {
+    let config = Config::new(shell).unwrap();
+    let mut source = PathSource::for_path(root.parent().unwrap(),
+                                           &config).unwrap();
+    let _ = source.update();
+    let package = source.root_package().unwrap();
+    package.targets().iter()
+        .filter(|t| t.is_bin() || t.is_example())
+        .map(|t| t.name().to_string())
+        .collect()
 }
 
 fn main() {
@@ -82,7 +76,7 @@ fn main() {
     let root = find_root_manifest_for_cwd(options.flag_manifest_path).unwrap();
     let spec = options.flag_package.as_ref().map(|s| &s[..]);
 
-    let pkg_name = get_package_name(&root, spec, &mut shell).unwrap();
+    let targets = get_target_names(&root, &mut shell);
 
     let result: Result<Option<()>, CliError> = {
         let config = Config::new(&mut shell).unwrap();
@@ -94,8 +88,9 @@ fn main() {
             false => CompileFilter::Everything,
         };
 
+
         let engine = LinkArgsEngine {
-            pkg_name: pkg_name,
+            targets: targets,
             link_args: options.arg_args.clone(),
             print_link_args: options.flag_print_link_args,
         };
