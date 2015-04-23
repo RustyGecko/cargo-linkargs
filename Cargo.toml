@@ -4,9 +4,9 @@ version = "0.0.1"
 authors = ["Sondre Lefsaker <sondrele@stud.ntnu.no>"]
 
 [dependencies]
-docopt = "*"
-docopt_macros = "*"
-rustc-serialize = "*"
+docopt = "0.6"
+docopt_macros = "0.6"
+rustc-serialize = "0.3"
 
 [dependencies.cargo]
 git = "https://github.com/rust-lang/cargo"
