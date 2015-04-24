@@ -1,6 +1,6 @@
 [package]
 name = "cargo-linkargs"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Sondre Lefsaker <sondrele@stud.ntnu.no>"]
 
 [dependencies]
