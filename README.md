@@ -13,6 +13,9 @@ Note that both of these parameters will *only* be passed on as arguments to the 
 
 
 ## Installation
+Currently, `cargo-linkargs` depends directly on the Cargo source code, so make sure that
+you have everything set up correctly in order to [compile cargo](https://github.com/rust-lang/cargo/#compiling-cargo).
+
 Build the project and make sure the `cargo-linkargs` binary is available in the path.
 
 For example:
@@ -25,13 +28,14 @@ Once the `cargo-linkargs` binary is in the path, it can be used like any other C
 
 ```
 Usage:
-    cargo linkargs [options] <args>
-
+    cargo linkargs [options] [<args>]
 Options:
     -h, --help               Print this message
     -p SPEC, --package SPEC  Package to build
     -j N, --jobs N           The number of jobs to run in parallel
     --lib                    Build only lib (if present in package)
+    --build-examples         Build all examples (if present in package)
+    --example NAME           Name of the example to build
     --release                Build artifacts in release mode, with optimizations
     --features FEATURES      Space-separated list of features to also build
     --no-default-features    Do not build the `default` feature
