@@ -93,11 +93,11 @@ fn get_target_names(root: &PathBuf, shell: &mut MultiShell) ->
 
     let examples = targets.iter()
         .filter(|t| t.is_example())
-        .map(|t| t.name().to_string())
+        .map(|t| t.name().to_string().replace("-", "_"))
         .collect();
     let bins = targets.iter()
         .filter(|t| t.is_bin())
-        .map(|t| t.name().to_string())
+        .map(|t| t.name().to_string().replace("-", "_"))
         .collect();
 
     Ok(Some((examples, bins)))
