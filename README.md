@@ -1,6 +1,6 @@
 # cargo-linkargs
 [![Build Status](https://travis-ci.org/RustyGecko/cargo-linkargs.svg)](https://travis-ci.org/RustyGecko/cargo-linkargs)
-
+### Note: This subcommand is depcrated in favor of the built in `cargo rustc` command
 A Cargo subcommand to apply the `-C link-args="..."` rustc codegen option to the final binary built with Cargo.
 
 `cargo-linkargs` executes a build on a normal Cargo project just like the `cargo build` command.
